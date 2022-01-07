@@ -1,0 +1,39 @@
+<h1>Web Socket Demo</h1>
+<script
+  src="https://cdn.socket.io/4.4.1/socket.io.min.js"
+  integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
+  crossorigin="anonymous"
+></script>
+<script>
+  var socket = io('ws://localhost:3000', {
+    transports: ['websocket', 'polling'], // use WebSocket first, if available
+  });
+  socket.on('message', function (msg) {
+    console.log('Got', msg);
+    document.getElementById('subscribe-message').innerHTML = msg;
+  });
+
+  function init() {
+    var form = document.getElementById('form');
+    var input = document.getElementById('input');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit('message', input.value);
+        input.value = '';
+      }
+    });
+  }
+</script>
+<body onload="init()">
+  <ul id="messages"></ul>
+  <h2>Publish New Message</h2>
+  <form id="form" action="">
+    <input id="input" autocomplete="off" /><button>Send</button>
+  </form>
+  <div>
+    <h2>Subscribed Message</h2>
+    <span id="subscribe-message"></span>
+  </div>
+</body>
