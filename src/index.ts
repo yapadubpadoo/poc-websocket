@@ -16,14 +16,10 @@ const io = new Server(server, {
 const staticDirPath = path.join(__dirname, '..', 'static');
 app.use(serve(staticDirPath));
 
-// app.use(async ctx => {
-//   ctx.body = 'Hello World';
-// });
-
 io.on('connection', socket => {
   console.log('[+] a user connected');
-  socket.on('disconnect', () => {
-    console.log('[-] user disconnected');
+  socket.on('disconnect', reason => {
+    console.log('[-] user disconnected,', reason);
   });
   socket.on('message', msg => {
     console.log('[>] ' + msg);

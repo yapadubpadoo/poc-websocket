@@ -1,0 +1,31 @@
+<h1>Web Socket Demo</h1>
+<script
+  src="https://cdn.socket.io/4.4.1/socket.io.min.js"
+  integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
+  crossorigin="anonymous"
+></script>
+<script>
+  const fid = 'my-fid';
+  const channel = `channel-${fid}-client`
+  var socket = io('ws://localhost:3000', {
+    transports: ['websocket', 'polling'], // use WebSocket first, if available
+  });
+  socket.on('message', function (msg) {
+    console.log('Got', msg);
+    document.getElementById('subscribe-message').innerHTML = JSON.stringify(msg);
+  });
+  socket.on('connect', function (msg) {
+    console.log('Connected!');
+    socket.emit('userOnline', {id : fid})
+  });
+  socket.on('disconnect', reason => {
+    console.log('Disconnected!', reason);
+  });
+</script>
+<body>
+  <ul id="messages"></ul>
+  <div>
+    <h2>Subscribed Message</h2>
+    <span id="subscribe-message"></span>
+  </div>
+</body>

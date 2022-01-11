@@ -1,0 +1,43 @@
+<h1>Web Socket Demo</h1>
+<script
+  src="https://cdn.socket.io/4.4.1/socket.io.min.js"
+  integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
+  crossorigin="anonymous"
+></script>
+<script>
+  var socket = io('ws://localhost:3000', {
+    transports: ['websocket', 'polling'], // use WebSocket first, if available
+  });
+  socket.on('connect', function (msg) {
+    console.log('Connected!');
+  });
+  socket.on('disconnect', reason => {
+    console.log('Disconnected!', reason);
+  });
+
+  function init() {
+    const form = document.getElementById('form');
+    const fid = document.getElementById('fid');
+    const message = document.getElementById('message');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (fid.value && message.value) {
+        const data = {
+          id: fid.value,
+          message: message.value,
+        };
+        socket.emit('message', data);
+        message.value = '';
+        console.log('Sent!', data);
+      }
+    });
+  }
+</script>
+<body onload="init()">
+  <h2>Publish New Message</h2>
+  <form id="form" action="">
+    <input id="fid" autocomplete="off" value="my-fid" />
+    <input id="message" autocomplete="off" /><button>Send</button>
+  </form>
+</body>
