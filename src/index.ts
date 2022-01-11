@@ -32,4 +32,4 @@ io.on('connection', socket => {
 
 // app.listen(3000);
 // https://github.com/koajs/koa/issues/1041#issuecomment-344318977
-server.listen(3000);
+server.listen(3000, '0.0.0.0');
