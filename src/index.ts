@@ -9,7 +9,8 @@ const app = new Koa();
 // https://github.com/koajs/koa/issues/1041#issuecomment-344318977
 const server = http.createServer(app.callback());
 const io = new Server(server, {
-  transports: ['websocket', 'polling'], // use WebSocket first, if available
+  transports: ['websocket', 'polling'], // use WebSocket first, if available,
+  allowEIO3: true,
 });
 
 const staticDirPath = path.join(__dirname, '..', 'static');
