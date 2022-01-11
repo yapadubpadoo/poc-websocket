@@ -6,60 +6,92 @@ const io = new Server();
 const pubClient = createClient({url: 'redis://localhost:6379'});
 const subClient = pubClient.duplicate();
 
-const userChannel: {[key: string]: any} = [];
-const userData: {[key: string]: any} = [];
+const userRedis = createClient({url: 'redis://localhost:6379', database: 15});
+const UserRepo = (redisClient: RedisClientType) => {
+  return {
+    saveChannel: async (userID: string, socketID: string) => {
+      const channelKey = `${userID}-online-${socketID}`;
+      return redisClient.set(channelKey, socketID);
+    },
+    getAssociatedChannels: async (userID: string) => {
+      const channelKey = `${userID}-online-*`;
+      const channels = await redisClient.keys(channelKey);
+      const getChannelPromises = channels.map(ch => {
+        return redisClient.get(ch);
+      });
+      return Promise.all(getChannelPromises);
+    },
+    deleteAssociatedChannel: async (socketID: string) => {
+      const channelKey = `*-online-${socketID}`;
+      const channels = await redisClient.keys(channelKey);
+      const deleteChannelPromises = channels.map(ch => {
+        return redisClient.del(ch);
+      });
+      return Promise.all(deleteChannelPromises);
+    },
+    pushData: async (userID: string, data: string) => {
+      const key = `${userID}-data`;
+      return redisClient.rPush(key, data);
+    },
+    getAllData: async (userID: string) => {
+      const key = `${userID}-data`;
+      return redisClient.lRange(key, 0, -1);
+    },
+    clearAllData: async (userID: string) => {
+      const key = `${userID}-data`;
+      return redisClient.del(key);
+    },
+  };
+};
 
-Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+Promise.all([pubClient.connect(), subClient.connect()]).then(async () => {
+  await userRedis.connect();
+  const userRepo = UserRepo(userRedis as RedisClientType);
   io.adapter(createAdapter(pubClient, subClient));
-  io.on('connection', socket => {
-    socket.on('userOnline', data => {
+  io.on('connection', async socket => {
+    socket.on('userOnline', async data => {
       console.log(`[${socket.id}] User "${data.id}" is online`);
-      userChannel[data.id] = socket.id;
-      if (userData[data.id] && userData[data.id].length > 0) {
-        console.log(
-          `[${socket.id}] Data sent to user "${data.id}",`,
-          userData[data.id]
-        );
-        io.to(socket.id).emit('message', userData[data.id]);
-        userData[data.id] = [];
+      await userRepo.saveChannel(data.id, socket.id);
+      const storedMessages = await userRepo.getAllData(data.id);
+      if (storedMessages.length > 0) {
+        const messages = storedMessages.map(m => {
+          return JSON.parse(m);
+        });
+        io.to(socket.id).emit('message', messages);
+        console.log(`[${socket.id}] Data sent to user "${data.id}",`, messages);
+        await userRepo.clearAllData(data.id);
       } else {
-        console.log(
-          `[${socket.id}] No remain data for user "${data.id}",`,
-          userData[data.id]
-        );
+        console.log(`[${socket.id}] No remain data for user "${data.id}",`);
       }
     });
-    socket.on('userOffline', data => {
+    socket.on('userOffline', async data => {
       console.log(`[${socket.id}] User "${data.id}" is offline`);
-      userChannel[data.id] = null;
+      await userRepo.deleteAssociatedChannel(socket.id);
     });
-    socket.on('disconnect', reason => {
+    socket.on('disconnect', async reason => {
       console.log(`[${socket.id}][-] Client disconnected:,`, reason);
-      for (const [userID, socketID] of Object.entries(userChannel)) {
-        if (socketID === socket.id) {
-          userChannel[userID] = null;
-        }
-      }
+      await userRepo.deleteAssociatedChannel(socket.id);
     });
-    socket.on('message', data => {
+    socket.on('message', async data => {
       console.log(`[${socket.id}][m] Got client's message:`, data);
-      const socketId = userChannel[data.id];
-      if (socketId) {
-        console.log(
-          `[${socket.id}] User "${data.id}" is online, sending,`,
-          data,
-          'via',
-          socketId
-        );
-        io.to(socketId).emit('message', data);
-      } else {
-        if (!userData[data.id]) {
-          userData[data.id] = [];
+      const sockets = await userRepo.getAssociatedChannels(data.id);
+      if (sockets.length > 0) {
+        for (const socketID of sockets) {
+          if (socketID !== null) {
+            console.log(
+              `[${socket.id}] User "${data.id}" is online, sending,`,
+              data,
+              'via',
+              socketID
+            );
+            io.to(socketID).emit('message', data);
+          }
         }
-        userData[data.id].push(data);
+      } else {
+        userRepo.pushData(data.id, JSON.stringify(data));
         console.log(
           `[${socket.id}] User "${data.id}" is offline, store data for later,`,
-          userData[data.id]
+          await userRepo.getAllData(data.id)
         );
       }
     });

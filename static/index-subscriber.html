@@ -6,24 +6,40 @@
 ></script>
 <script>
   const fid = 'my-fid';
-  const channel = `channel-${fid}-client`
-  var socket = io('ws://localhost:3000', {
+  const socket = io('ws://localhost:3000', {
     transports: ['websocket', 'polling'], // use WebSocket first, if available
   });
   socket.on('message', function (msg) {
     console.log('Got', msg);
-    document.getElementById('subscribe-message').innerHTML = JSON.stringify(msg);
+    document.getElementById('subscribe-message').innerHTML =
+      JSON.stringify(msg);
   });
   socket.on('connect', function (msg) {
     console.log('Connected!');
-    socket.emit('userOnline', {id : fid})
   });
   socket.on('disconnect', reason => {
     console.log('Disconnected!', reason);
   });
+
+  function init() {
+    const form = document.getElementById('form');
+    const fid = document.getElementById('fid');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (fid.value) {
+        socket.emit('userOnline', {id: fid.value});
+      } else {
+        alert('Please enter FID');
+      }
+    });
+  }
 </script>
-<body>
-  <ul id="messages"></ul>
+<body onload="init()">
+  <h2>Connect as</h2>
+  <form id="form" action="">
+    <input id="fid" autocomplete="off" value="my-fid" />
+    <button>Connect</button>
+  </form>
   <div>
     <h2>Subscribed Message</h2>
     <span id="subscribe-message"></span>
